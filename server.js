@@ -31,6 +31,7 @@
 const express = require('express');
 const { interpretWithGemini } = require('./providers/gemini');
 const { interpretWithClaude } = require('./providers/claude');
+const { interpretWithGroq } = require('./providers/groq');
 
 const app = express();
 app.use(express.json());
@@ -55,8 +56,14 @@ sem markdown. Cada item deve ter exatamente esta forma:
 }
 
 Regras por tipo:
-- sendSms: params = {"contactName": "..."}; requiresConfirmation SEMPRE true
-  (é uma ação irreversível).
+- sendSms: params = {"contactName": "...", "message": "..."}. O campo
+  "message" só deve ser preenchido quando o CONTEÚDO da mensagem já
+  vier explícito no pedido do utilizador (ex.: pedidos compostos como
+  "manda mensagem à Maria a dizer que chego em 20 minutos" → message =
+  "Chego em 20 minutos"). Se o pedido só disser para enviar uma
+  mensagem sem dizer o conteúdo, OMITE o campo "message" (a app pede o
+  conteúdo depois, por voz). requiresConfirmation SEMPRE true (é uma
+  ação irreversível).
 - createNote: params = {"content": "..."}; requiresConfirmation false.
 - deleteLastNote: params = {}; requiresConfirmation true.
 - openApp: params = {"appName": "..."}; requiresConfirmation false. Só usa
@@ -72,7 +79,7 @@ Exemplo de pedido composto:
 20 minutos, depois abre o Maps."
 Resposta esperada:
 [
-  {"type":"sendSms","params":{"contactName":"Maria"},"confirmationPhrase":"Vou enviar uma mensagem a Maria a dizer que chego em 20 minutos. Confirma?","requiresConfirmation":true},
+  {"type":"sendSms","params":{"contactName":"Maria","message":"Chego em 20 minutos"},"confirmationPhrase":"Vou enviar 'Chego em 20 minutos' a Maria. Confirma?","requiresConfirmation":true},
   {"type":"openApp","params":{"appName":"mapas"},"confirmationPhrase":"","requiresConfirmation":false}
 ]
 `;
@@ -88,6 +95,8 @@ app.post('/interpretar', async (req, res) => {
 
     if (LLM_PROVIDER === 'claude') {
       rawText = await interpretWithClaude(texto, SYSTEM_PROMPT, process.env.ANTHROPIC_API_KEY);
+    } else if (LLM_PROVIDER === 'groq') {
+      rawText = await interpretWithGroq(texto, SYSTEM_PROMPT, process.env.GROQ_API_KEY);
     } else {
       rawText = await interpretWithGemini(texto, SYSTEM_PROMPT, process.env.GEMINI_API_KEY);
     }
