@@ -8,7 +8,13 @@
 // que a Google está a ter agora.
 
 async function interpretWithGroq(texto, systemPrompt, apiKey) {
-  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  // "llama-3.3-70b-versatile" foi descontinuado pela Groq — trocado
+  // para o substituto atual recomendado por eles. "openai/gpt-oss-20b"
+  // é rápido e mais do que suficiente para esta tarefa (interpretar
+  // comandos curtos e devolver JSON estruturado); se precisares de mais
+  // qualidade em pedidos mais complexos, troca para
+  // "openai/gpt-oss-120b" através da variável de ambiente GROQ_MODEL.
+  const model = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
