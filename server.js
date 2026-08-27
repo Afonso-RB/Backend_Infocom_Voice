@@ -101,7 +101,24 @@ app.post('/interpretar', async (req, res) => {
       rawText = await interpretWithGemini(texto, SYSTEM_PROMPT, process.env.GEMINI_API_KEY);
     }
 
-    const cleaned = rawText.replace(/^```json/, '').replace(/```$/, '').trim();
+    let cleaned = rawText.replace(/^```json/, '').replace(/```$/, '').trim();
+
+    // Alguns modelos (sobretudo os de "raciocínio", como os usados no
+    // Groq) por vezes acrescentam texto antes/depois do array JSON,
+    // apesar da instrução para não o fazerem. Em vez de desistir logo,
+    // tenta extrair só o troço entre o primeiro "[" e o último "]".
+    if (!cleaned.startsWith('[')) {
+      const start = cleaned.indexOf('[');
+      const end = cleaned.lastIndexOf(']');
+      if (start !== -1 && end !== -1 && end > start) {
+        cleaned = cleaned.slice(start, end + 1);
+      }
+    }
+
+    // Log sempre visível (não só em erro) — ajuda a diagnosticar, nos
+    // logs do Render, exatamente o que a IA respondeu para cada pedido,
+    // enquanto estivermos a afinar isto.
+    console.log(`[${LLM_PROVIDER}] pedido: "${texto}" → resposta bruta:`, rawText);
 
     let actions;
     try {
