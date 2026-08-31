@@ -1,6 +1,7 @@
-// Provider Gemini (Google AI Studio) — usa a chave gratuita obtida em
-// aistudio.google.com. Ver GUIA_V2.md para o passo a passo de como
-// obter a chave.
+// Provider Gemini (Google AI Studio). ATENÇÃO: contas novas podem
+// receber chaves no formato "AQ." que não funcionam com este método
+// de chamada — problema atual e generalizado do lado da Google. Se
+// isso acontecer, usa o Groq em vez deste.
 
 async function interpretWithGemini(texto, systemPrompt, apiKey) {
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -10,8 +11,6 @@ async function interpretWithGemini(texto, systemPrompt, apiKey) {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      // A API Gemini não tem um campo "system" separado como a Claude
-      // — o mais fiável é prefixar o próprio prompt do utilizador.
       contents: [
         {
           role: 'user',

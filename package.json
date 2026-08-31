@@ -1,7 +1,7 @@
 {
   "name": "infocom-voice-backend",
   "version": "0.1.0",
-  "description": "Backend mínimo que guarda a chave da API Claude e interpreta pedidos compostos para a app Infocom Voice.",
+  "description": "Backend mínimo que guarda a chave da IA e interpreta pedidos compostos para a app Infocom Voice.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

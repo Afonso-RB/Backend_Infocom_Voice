@@ -1,18 +1,11 @@
-// Provider Groq — alternativa ao Gemini, para usar se a tua conta
-// Google só emitir chaves no formato novo "AQ." (problema atual e
-// generalizado do lado da Google, incompatível com o método de chamada
-// usado neste backend — ver GUIA_V2.md).
-//
-// O Groq usa o mesmo formato de pedido da OpenAI (mais um "standard" da
-// indústria), a chave é sempre no formato "gsk_...", sem os problemas
-// que a Google está a ter agora.
+// Provider Groq — gratuito, chave estável (gsk_...), sem os problemas
+// de formato de chave que a Google tem tido.
 
 async function interpretWithGroq(texto, systemPrompt, apiKey) {
   // "llama-3.3-70b-versatile" foi descontinuado pela Groq — trocado
   // para o substituto atual recomendado por eles. "openai/gpt-oss-20b"
-  // é rápido e mais do que suficiente para esta tarefa (interpretar
-  // comandos curtos e devolver JSON estruturado); se precisares de mais
-  // qualidade em pedidos mais complexos, troca para
+  // é rápido e mais do que suficiente para esta tarefa; se precisares
+  // de mais qualidade em pedidos mais complexos, troca para
   // "openai/gpt-oss-120b" através da variável de ambiente GROQ_MODEL.
   const model = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
 

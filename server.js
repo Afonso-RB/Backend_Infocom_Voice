@@ -6,27 +6,16 @@
 // credencial sensível embutida.
 //
 // PROVIDER (fase de testes vs. comercialização):
-//   LLM_PROVIDER=gemini (omissão) → usa o Google Gemini, GRÁTIS,
-//     ideal para testar agora. Precisa de GEMINI_API_KEY.
-//   LLM_PROVIDER=claude → usa a API Claude (paga), a trocar quando o
-//     produto entrar na fase de comercialização. Precisa de
-//     ANTHROPIC_API_KEY.
-// A troca faz-se só mudando esta variável de ambiente — o resto do
-// código (o prompt, o formato de resposta esperado pela app) é igual
-// para os dois, graças aos ficheiros em providers/.
+//   LLM_PROVIDER=groq (recomendado agora) → grátis, chave estável.
+//   LLM_PROVIDER=gemini → grátis, mas contas novas podem receber
+//     chaves no formato "AQ." que não funcionam com este método de
+//     chamada (problema atual e generalizado do lado da Google).
+//   LLM_PROVIDER=claude → paga, trocar na fase de comercialização.
+// A troca faz-se só mudando esta variável de ambiente.
 //
 // Como correr localmente:
 //   npm install
-//   LLM_PROVIDER=gemini GEMINI_API_KEY=AIzaSy... node server.js
-//
-// Como obter uma chave Gemini grátis: ver GUIA_V2.md.
-//
-// Como publicar (grátis/barato, escolhe um):
-//   - Firebase Functions (recomendado, já está na stack tecnológica)
-//   - Render.com / Railway.app (deploy direto a partir do Git)
-//
-// Depois de publicado, atualiza o `backendUrl` em cloud_intent_client.dart
-// para o URL público deste servidor + "/interpretar".
+//   $env:LLM_PROVIDER="groq"; $env:GROQ_API_KEY="gsk_..."; node server.js
 
 const express = require('express');
 const { interpretWithGemini } = require('./providers/gemini');
@@ -37,7 +26,7 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const LLM_PROVIDER = process.env.LLM_PROVIDER || 'gemini';
+const LLM_PROVIDER = process.env.LLM_PROVIDER || 'groq';
 
 // Mesma lista de capacidades que a app conhece — mantém sincronizado
 // com o enum VoiceActionType (lib/models/voice_action.dart) e com o
@@ -64,15 +53,24 @@ Regras por tipo:
   mensagem sem dizer o conteúdo, OMITE o campo "message" (a app pede o
   conteúdo depois, por voz). requiresConfirmation SEMPRE true (é uma
   ação irreversível).
+  ATENÇÃO: quando a frase tiver "e depois" a seguir ao conteúdo da
+  mensagem, isso marca o INÍCIO DE UM PEDIDO SEGUINTE, não faz parte da
+  mensagem. Ex.: "manda mensagem ao Caetano a dizer que chego tarde e
+  depois abre o Spotify" → message = "chego tarde" (para em "e depois"),
+  seguido de um segundo item openApp para o Spotify.
 - createNote: params = {"content": "..."}; requiresConfirmation false.
 - deleteLastNote: params = {}; requiresConfirmation true.
-- openApp: params = {"appName": "..."}; requiresConfirmation false. Só usa
-  nomes de apps conhecidas: whatsapp, youtube, gmail, calendário, mapas,
-  facebook, instagram, spotify, chrome.
+- openApp: params = {"appName": "..."}; requiresConfirmation false. Só
+  usa nomes de apps conhecidas: whatsapp, youtube, gmail, calendário,
+  mapas, facebook, instagram, spotify, chrome. O nome da app NUNCA
+  inclui palavras de outro pedido (ex.: "e depois", "manda mensagem",
+  etc.) — corta o nome da app assim que aparecer qualquer um desses
+  marcadores.
 - closeApp: params = {}; requiresConfirmation false.
 
-Se o pedido não corresponder a nenhuma destas ações, responde com um
-array vazio: []
+Se o pedido não corresponder a nenhuma destas ações (ex.: perguntas
+sobre o estado da app, tipo "quantas notas tens guardadas" — a app
+ainda não sabe responder a isso), responde com um array vazio: []
 
 Exemplo de pedido composto:
 "Estou a sair de casa. Manda uma mensagem à Maria a dizer que chego em
@@ -95,10 +93,10 @@ app.post('/interpretar', async (req, res) => {
 
     if (LLM_PROVIDER === 'claude') {
       rawText = await interpretWithClaude(texto, SYSTEM_PROMPT, process.env.ANTHROPIC_API_KEY);
-    } else if (LLM_PROVIDER === 'groq') {
-      rawText = await interpretWithGroq(texto, SYSTEM_PROMPT, process.env.GROQ_API_KEY);
-    } else {
+    } else if (LLM_PROVIDER === 'gemini') {
       rawText = await interpretWithGemini(texto, SYSTEM_PROMPT, process.env.GEMINI_API_KEY);
+    } else {
+      rawText = await interpretWithGroq(texto, SYSTEM_PROMPT, process.env.GROQ_API_KEY);
     }
 
     let cleaned = rawText.replace(/^```json/, '').replace(/```$/, '').trim();
@@ -116,8 +114,7 @@ app.post('/interpretar', async (req, res) => {
     }
 
     // Log sempre visível (não só em erro) — ajuda a diagnosticar, nos
-    // logs do Render, exatamente o que a IA respondeu para cada pedido,
-    // enquanto estivermos a afinar isto.
+    // logs do Render, exatamente o que a IA respondeu para cada pedido.
     console.log(`[${LLM_PROVIDER}] pedido: "${texto}" → resposta bruta:`, rawText);
 
     let actions;

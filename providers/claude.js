@@ -1,7 +1,4 @@
-// Provider Claude (Anthropic) — usar na fase de comercialização, quando
-// a precisão/qualidade da interpretação justificar o custo pago.
-// Fica aqui pronto, só precisa da variável ANTHROPIC_API_KEY para
-// entrar em ação (ver LLM_PROVIDER no server.js).
+// Provider Claude (Anthropic) — usar na fase de comercialização.
 
 async function interpretWithClaude(texto, systemPrompt, apiKey) {
   const model = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
