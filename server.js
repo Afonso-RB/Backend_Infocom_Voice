@@ -58,6 +58,12 @@ Regras por tipo:
   mensagem. Ex.: "manda mensagem ao Caetano a dizer que chego tarde e
   depois abre o Spotify" → message = "chego tarde" (para em "e depois"),
   seguido de um segundo item openApp para o Spotify.
+  Se o utilizador quer enviar uma mensagem mas NÃO diz a quem (ex.:
+  "quero enviar uma mensagem"), devolve sendSms com contactName = ""
+  (string vazia) e sem "message" — a app pergunta o destinatário por
+  voz. Os nomes de contactos vêm de reconhecimento de voz e podem ter
+  pequenos erros; copia-os tal como foram ditos (a app faz a
+  correspondência aproximada com a agenda).
 - createNote: params = {"content": "..."}; requiresConfirmation false.
 - deleteLastNote: params = {}; requiresConfirmation true.
 - openApp: params = {"appName": "..."}; requiresConfirmation false. Só
@@ -67,6 +73,9 @@ Regras por tipo:
   etc.) — corta o nome da app assim que aparecer qualquer um desses
   marcadores.
 - closeApp: params = {}; requiresConfirmation false.
+
+Ignora saudações e o nome da app no início do pedido (ex.: "olá
+Infocom", "ei Infocom, ...") — não fazem parte da ação.
 
 Se o pedido não corresponder a nenhuma destas ações (ex.: perguntas
 sobre o estado da app, tipo "quantas notas tens guardadas" — a app
@@ -82,9 +91,17 @@ Resposta esperada:
 ]
 `;
 
+// Usado pela app (e por um "pinger" externo, opcional) para acordar o
+// servidor no plano gratuito do Render, que adormece após ~15 minutos
+// sem pedidos. Não chama a IA — responde logo.
+app.get('/health', (req, res) => {
+  res.json({ ok: true, provider: LLM_PROVIDER });
+});
+
 app.post('/interpretar', async (req, res) => {
+  const startedAt = Date.now();
   const { texto } = req.body;
-  if (!texto || typeof texto !== 'string') {
+  if (!texto || typeof texto !== 'string' || texto.length > 600) {
     return res.status(400).json([]);
   }
 
@@ -115,7 +132,7 @@ app.post('/interpretar', async (req, res) => {
 
     // Log sempre visível (não só em erro) — ajuda a diagnosticar, nos
     // logs do Render, exatamente o que a IA respondeu para cada pedido.
-    console.log(`[${LLM_PROVIDER}] pedido: "${texto}" → resposta bruta:`, rawText);
+    console.log(`[${LLM_PROVIDER}] (${Date.now() - startedAt}ms) pedido: "${texto}" → resposta bruta:`, rawText);
 
     let actions;
     try {
@@ -127,7 +144,7 @@ app.post('/interpretar', async (req, res) => {
 
     return res.json(actions);
   } catch (error) {
-    console.error(`Erro ao chamar a IA (provider=${LLM_PROVIDER}):`, error);
+    console.error(`Erro ao chamar a IA (provider=${LLM_PROVIDER}, ${Date.now() - startedAt}ms):`, error);
     return res.status(502).json([]);
   }
 });
